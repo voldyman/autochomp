@@ -1,0 +1,184 @@
+<html>
+
+<head>
+    <title>AutoChomp</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        .query_wrapper {
+            position: relative;
+            display: inline-block;
+            width: 370px;
+        }
+
+        .query {
+            height: 2rem;
+            width: 100%;
+            border-width: 1px;
+            margin: 0;
+            padding: 0 2rem 0 1rem;
+            font-size: 1rem;
+            outline: 0;
+            border-radius: 8rem;
+            transform: all 0.4s ease;
+        }
+
+        .results_list {
+            position: absolute;
+            /* top: 100%; */
+            left: 0;
+            right: 0;
+            padding: 0;
+            margin-top: .5rem;
+            border-radius: 0.6rem;
+            background-color: #fff;
+            box-shadow: 0 3px 6px rgba(149, 157, 165, 0.15);
+            border: 1px solid rgba(33, 33, 33, 0.07);
+            z-index: 1000;
+            outline: 0;
+        }
+
+        .results_item {
+            display: flex;
+            justify-content: space-between;
+            margin: 0.3rem;
+            padding: 0.3rem 0.5rem;
+            list-style: none;
+            text-align: left;
+            font-size: 1rem;
+            color: #212121;
+            border-radius: 0.35rem;
+            background-color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: all 0.2s ease;
+        }
+
+        .results_item:hover {
+            cursor: pointer;
+            background-color: rgba(122, 180, 255, 0.13);
+        }
+    </style>
+</head>
+
+<body>
+    <form autocomplete='off'>
+        <div class='query_wrapper'>
+            <input type='text' class='query' id='query' />
+        </div>
+    </form>
+
+    <script>
+        const queryEl = document.querySelector('#query');
+        let resultsEl;
+        (function () {
+            this.keyHandler = debounce(() => {
+                inputUpdated(getInputValue(queryEl));
+            }, 200);
+            queryEl.addEventListener('input', keyHandler);
+        })()
+
+        async function inputUpdated(text) {
+            console.log(`input: ${text}`);
+
+            if (resultsEl != null) {
+                closeResultsList(queryEl, resultsEl);
+                resultsEl = null;
+            }
+            const results = ['testing', `query: ${text}`, text].map(t => { return { text: t } });
+            const selectionCallback = ({ query, result }) => {
+                console.log(`${query} => ${result.text}`);
+            }
+            resultsEl = generateResults({
+                query: text,
+                queryElement: queryEl,
+                selectionCallback,
+                results,
+            });
+
+            document.addEventListener('click', (event) => {
+                if (resultsEl != null && event.target != resultsEl && event.target != queryEl) {
+                    closeResultsList(queryEl, resultsEl);
+                    resultsEl = null;
+                }
+            }, {
+                once: true
+            });
+        }
+
+        function debounce(callback, delay) {
+            let timeoutHandle;
+            return () => {
+                let ctx = this;
+                let args = arguments;
+                clearTimeout(timeoutHandle);
+                timeoutHandle = setTimeout(() => callback.apply(ctx, args), delay);
+            }
+        }
+        function getInputValue(inputField) {
+            return inputField instanceof HTMLInputElement || inputField instanceof HTMLTextAreaElement
+                ? inputField.value.toLowerCase()
+                : inputField.innerHTML.toLowerCase();
+        };
+
+        function createResultsList(queryInputElement) {
+            const results = document.createElement('ul');
+            results.setAttribute('id', `${queryInputElement.getAttribute('id')}_results`);
+            results.setAttribute('aria-label', 'results');
+            results.setAttribute('role', 'listbox');
+            results.setAttribute('tabindex', -1);
+            results.setAttribute('class', 'results_list');
+
+            queryInputElement.insertAdjacentElement('afterend', results);
+            return results;
+        }
+
+        function closeResultsList(queryInputElement, resultsElement) {
+            resultsElement.parentNode.removeChild(resultsElement);
+            queryInputElement.removeAttribute("aria-activedescendant");
+            queryInputElement.setAttribute("aria-expanded", false);
+        }
+
+        function createItem({ parentId, query, index, result, selectionCallback }) {
+            const item = document.createElement("li");
+            item.setAttribute('id', `${parentId}_${index}`)
+            item.setAttribute('role', 'option');
+            item.setAttribute('class', 'results_item')
+            item.innerHTML = result.text;
+            item.addEventListener('click', (event) => {
+                selectionCallback({
+                    event: event,
+                    query: query,
+                    result: result
+                })
+            })
+
+            return item;
+        }
+
+        function generateResults({ query, queryElement, results, selectionCallback }) {
+            const resultsElement = createResultsList(queryElement);
+            queryElement.setAttribute("aria-expanded", true);
+
+            const queryElementId = queryElement.getAttribute('id');
+            for (let index = 0; index < results.length; index++) {
+                const resultItem = createItem({
+                    index,
+                    query: query,
+                    parentId: queryElementId,
+                    result: results[index],
+                    selectionCallback
+                });
+                resultsElement.appendChild(resultItem);
+            }
+
+            return resultsElement;
+        }
+    </script>
+</body>
+
+</html>
